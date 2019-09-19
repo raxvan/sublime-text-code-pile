@@ -1,0 +1,23 @@
+[
+	{ "keys": ["super+shift+c"], "command": "calculate", "args": {"replace": true} },
+	{ "keys": ["ctrl+shift+d"], "command": "viewdocumentation"},
+	{ "keys": ["super+shift+d"], "command": "viewdocumentation"},
+
+	{ "keys": ["super+alt+f"], "command": "find_all_under" },
+
+	{ "keys": ["ctrl+\\"], "command": "toggle_side_bar" },
+
+
+	{ "keys": ["super+t"], "command": "new_file" },
+	{ "keys": ["ctrl+shift+p"], "command": "show_overlay", "args": {"overlay": "command_palette"} },
+	{ "keys": ["ctrl+p"], "command": "show_overlay", "args": {"overlay": "goto", "show_files": true} },
+	{ "keys": ["ctrl+d"], "command": "find_under_expand" },
+
+
+	{ "keys": ["f3"], "command": "find_next" },
+
+	{ "keys": ["super+shift+up"], "command": "select_lines", "args": {"forward": false} },
+	{ "keys": ["super+shift+down"], "command": "select_lines", "args": {"forward": true} },
+	{ "keys": ["alt+o"], "command": "switch_file", "args": {"extensions": ["cpp", "cxx", "cc", "c", "hpp", "hxx", "h", "ipp", "inl", "m", "mm"]} }
+]
+
