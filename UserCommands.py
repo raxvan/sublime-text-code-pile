@@ -8,6 +8,7 @@ import json
 import pickle
 import sys
 import os
+import glob
 
 import sublime
 import sublime_plugin
@@ -70,8 +71,6 @@ def _create_google_lucky_query(query_string):
 	url_parts[4] = urlencode(query)
 	return urlparse.urlunparse(url_parts)
 
-
-
 ##################################################################################################################################
 ##################################################################################################################################
 ##################################################################################################################################
@@ -114,6 +113,17 @@ class PrimitiveFunctions(object):
 			return json.dumps(dict(os.environ), sort_keys=True, indent=4)
 		else:
 			return os.environ[env_var]
+
+	def ls(abs_path):
+		result = []
+		for r, d, f in os.walk(abs_path):
+			for folder in d:
+				result.append(os.path.join(r,folder))
+			for file in f:
+				result.append(os.path.join(r,file))
+		return ";".join(result)
+
+
 
 class CalculateScope(object):
 	def __init__(self):
@@ -223,6 +233,14 @@ class SelectionGotoCommand(sublime_plugin.TextCommand):
 	def __init__(self, *args, **kwargs):
 		sublime_plugin.TextCommand.__init__(self, *args, **kwargs)
 
+		self.urlregex = re.compile(
+			r'^(?:http|ftp)s?://' # http:// or https://
+			r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|' #domain...
+			r'localhost|' #localhost...
+			r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})' # ...or ip
+			r'(?::\d+)?' # optional port
+			r'(?:/?|[/?]\S+)$', re.IGNORECASE)
+
 	def run(self, edit, **kwargs):
 		errors = []
 		for region in self.view.sel():
@@ -239,14 +257,22 @@ class SelectionGotoCommand(sublime_plugin.TextCommand):
 
 	def _find_and_goto(self,value):
 		if os.path.isfile(value):
+			#file
 			sublime.active_window().open_file(value)
 		elif os.path.isdir(value):
+			#directory
 			if sys.platform == "win32":
 				_run_system_command(["explorer", value])
 			if sys.platform == "darwin":
 				_run_system_command(["open", value])
-		else:
+
+		elif re.match(self.urlregex, value) is not None:
+			#url
 			_open_browser_with_url(value)
+
+		else:
+			_open_browser_with_url(_create_google_lucky_query(value))
+
 		pass
 
 	def run_each(self, edit, region):
