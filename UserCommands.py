@@ -78,6 +78,7 @@ def _create_google_lucky_query(query_string):
 class PrimitiveFunctions(object):
 
 	sep = "//--------------------------------------------------------------------------------------------------------------------------------"
+	sp  = "/*                                                                                                                              */"
 
 	def password(length, charset = None):
 		if(charset != None):
@@ -88,18 +89,17 @@ class PrimitiveFunctions(object):
 
 	def platform():
 		return sys.platform
+	def version():
+		return sys.version
 
-	def hash32(s):
+	def hash32(strvalue):
 		h = ctypes.c_uint(2166136261)
-		for c in s:
+		for c in strvalue:
 			h.value = h.value ^ ctypes.c_uint(ord(c)).value
 			h.value = h.value * ctypes.c_uint(16777619).value
 		return str(h.value)
 
-	def version():
-		return sys.version
-
-	def dc(value): #documentation
+	def dc(value): #open documentation browser
 		_open_browser_with_url(_create_cpp_doc_url(value))
 		return ""
 
@@ -107,14 +107,14 @@ class PrimitiveFunctions(object):
 		_open_browser_with_url(_create_google_lucky_query(value))
 		return ""
 
-	def env(env_var = None):
+	def env(env_var = None): #print enviroment variables
 		
 		if(env_var == None):
 			return json.dumps(dict(os.environ), sort_keys=True, indent=4)
 		else:
 			return os.environ[env_var]
 
-	def ls(abs_path):
+	def ls(abs_path): #list items at path
 		result = []
 		for r, d, f in os.walk(abs_path):
 			for folder in d:
@@ -184,11 +184,12 @@ class CalculateCommand(sublime_plugin.TextCommand):
 		errors = []
 		for region in self.view.sel():
 			try:
-				error = self.run_each(edit, region)
+				error = self.run_one_selection(edit, region)
 			except Exception as exception:
 				error = str(exception)
 
 			self.calc_context.next()
+
 			if error:
 				errors.append(error)
 				self.view.replace(edit, region, error)
@@ -196,7 +197,7 @@ class CalculateCommand(sublime_plugin.TextCommand):
 		if(len(errors) > 0):
 			sublime.status_message(";".join(errors))
 
-	def run_each(self, edit, region):
+	def run_one_selection(self, edit, region):
 		if not region.empty():
 			formula = self.view.substr(region)
 			value = self.calc_context.evaluate_str(formula)
@@ -212,7 +213,7 @@ class ViewdocumentationCommand(sublime_plugin.TextCommand):
 		errors = []
 		for region in self.view.sel():
 			try:
-				error = self.run_each(edit, region)
+				error = self.run_one_selection(edit, region)
 			except Exception as exception:
 				error = str(exception)
 
@@ -222,7 +223,7 @@ class ViewdocumentationCommand(sublime_plugin.TextCommand):
 		if(len(errors) > 0):
 			sublime.status_message(";".join(errors))
 
-	def run_each(self, edit, region):
+	def run_one_selection(self, edit, region):
 		if not region.empty():
 			value = self.view.substr(region)
 			_open_browser_with_url(_create_cpp_doc_url(value))
@@ -245,7 +246,7 @@ class SelectionGotoCommand(sublime_plugin.TextCommand):
 		errors = []
 		for region in self.view.sel():
 			try:
-				error = self.run_each(edit, region)
+				error = self.run_one_selection(edit, region)
 			except Exception as exception:
 				error = str(exception)
 
@@ -275,7 +276,7 @@ class SelectionGotoCommand(sublime_plugin.TextCommand):
 
 		pass
 
-	def run_each(self, edit, region):
+	def run_one_selection(self, edit, region):
 		if not region.empty():
 			value = self.view.substr(region)
 			self._find_and_goto(value)
@@ -293,7 +294,7 @@ class TogglePathFormatCommand(sublime_plugin.TextCommand):
 		errors = []
 		for region in self.view.sel():
 			try:
-				error = self.run_each(edit, region)
+				error = self.run_one_selection(edit, region)
 			except Exception as exception:
 				error = str(exception)
 
@@ -323,7 +324,7 @@ class TogglePathFormatCommand(sublime_plugin.TextCommand):
 			return value.replace("/","\\\\")
 		return value			
 
-	def run_each(self, edit, region):
+	def run_one_selection(self, edit, region):
 		if not region.empty():
 			value = self.view.substr(region)
 			new_value = self._update_string(value)
@@ -340,7 +341,7 @@ class ToggleNewlineSplitCommand(sublime_plugin.TextCommand):
 		errors = []
 		for region in self.view.sel():
 			try:
-				error = self.run_each(edit, region)
+				error = self.run_one_selection(edit, region)
 			except Exception as exception:
 				error = str(exception)
 
@@ -362,12 +363,131 @@ class ToggleNewlineSplitCommand(sublime_plugin.TextCommand):
 
 		return value			
 
-	def run_each(self, edit, region):
+	def run_one_selection(self, edit, region):
 		if not region.empty():
 			value = self.view.substr(region)
 			new_value = self._update_string(value)
 			if new_value != value:
 				self.view.replace(edit, region, new_value)
+
+
+##################################################################################################################################
+
+class WhiteTableCommand(sublime_plugin.TextCommand):
+	def __init__(self, *args, **kwargs):
+		sublime_plugin.TextCommand.__init__(self, *args, **kwargs)
+
+	def run(self, edit, **kwargs):
+		errors = []
+		backup_selections = self.view.sel()
+		new_selections = []
+		direction = kwargs['dir']
+		#print(direction)
+
+		for region in backup_selections:
+			new_selections.append(self.run_one_selection(edit, region,direction))
+			
+		self.view.sel().clear()
+		self.view.sel().add_all(new_selections)
+
+	def run_one_selection(self,edit, cselection, direction):
+		
+		row, col = self.view.rowcol(cselection.begin())
+		if(col == 0 or row == 0):
+			
+			return cselection
+
+		up_pos = self.view.text_point(row - 1, col)
+		down_pos = self.view.text_point(row + 1, col)
+
+		#make region with line start and current cursor position
+		up_range = sublime.Region(up_pos - 1,up_pos + 1)
+		mid_range = sublime.Region(cselection.begin() - 1,cselection.end() + 1)
+		down_range = sublime.Region(down_pos - 1,down_pos + 1)
+
+		up_text = self.view.substr(up_range)
+		mid_text = self.view.substr(mid_range)
+		down_text = self.view.substr(down_range)
+
+		#print(">"+up_text+"<")
+		#print(">"+mid_text+"<")
+		#print(">"+down_text+"<")
+
+		if direction == "right":
+
+			if mid_text[0] == "|":
+				mid_text = "+"
+			elif up_text[0] == "|" or down_text[0] == "|":
+				mid_text = "+"
+			else:
+				mid_text = "" + mid_text[0]
+
+			if up_text[1] == "|" or down_text[1] == "|":
+				mid_text = mid_text + "+"
+			else:
+				mid_text = mid_text + "-"
+			#print("[" + mid_text + "]")
+			self.view.replace(edit, mid_range, mid_text)
+			return sublime.Region(cselection.begin() + 1,cselection.end() + 1)
+			
+		elif direction == "left":
+
+			if mid_text[1] == "|":
+				mid_text = "+"
+			elif up_text[1] == "|" or down_text[1] == "|":
+				mid_text = "+"
+			else:
+				mid_text = "" + mid_text[1]
+
+			if up_text[0] == "|" or down_text[0] == "|":
+				mid_text = "+" + mid_text
+			else:
+				mid_text = "-" + mid_text
+			#print("[" + mid_text + "]")
+			self.view.replace(edit, mid_range, mid_text)
+			return sublime.Region(cselection.begin() - 1,cselection.end() - 1)
+			
+		elif direction == "up":
+			
+			mid_changed = False
+
+			if mid_text[0] == "-" or mid_text[1] == "-":
+				mid_text = "+" + mid_text[1]
+				mid_changed = True
+			
+
+			if up_text[0] == "-" or up_text[1] == "-":
+				up_text = "+" + up_text[1]
+			else:
+				up_text = "|" + up_text[1]
+			
+			self.view.replace(edit, up_range, up_text)
+			if mid_changed:
+				self.view.replace(edit, mid_range, mid_text)
+			return sublime.Region(up_pos,up_pos)
+			
+		elif direction == "down":
+			
+			mid_changed = False
+
+			if mid_text[0] == "-" or mid_text[1] == "-":
+				mid_text = "+" + mid_text[1]
+				mid_changed = True
+
+			if down_text[0] == "-" or down_text[1] == "-":
+				down_text = "+" + down_text[1]
+			else:
+				down_text = "|" + down_text[1]
+			
+			self.view.replace(edit, down_range, down_text)
+			if mid_changed:
+				self.view.replace(edit, mid_range, mid_text)
+			return sublime.Region(down_pos,down_pos)
+
+
+
+
+
 
 
 ##################################################################################################################################
