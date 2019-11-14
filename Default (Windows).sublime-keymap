@@ -1,11 +1,12 @@
 [
 	{ "keys": ["ctrl+shift+c"], "command": "calculate", "args": {"replace": true} },
-        
+
 	{ "keys": ["ctrl+shift+d"], "command": "viewdocumentation"},
-	{ "keys": ["alt+g"], "command": "selection_goto"},
+	{ "keys": ["alt+g"], "command": "smarter_goto"},
+	
 	{ "keys": ["alt+\\"], "command": "toggle_path_format"},
-	{ "keys": ["alt+;"], "command": "toggle_newline_split"},
-        
+	{ "keys": ["ctrl+l"], "command": "toggle_newline_split"},
+
 	{ "keys": [ "ctrl+shift+up" ], "command": "punch_cursor" , "args": {"down": false} },
 	{ "keys": [ "ctrl+shift+down" ], "command": "punch_cursor" , "args": {"down": true} },
 
@@ -13,11 +14,16 @@
 	{ "keys": [ "alt+down" ], "command": "white_table" , "args": {"dir": "down"} },
 	{ "keys": [ "alt+left" ], "command": "white_table" , "args": {"dir": "left"} },
 	{ "keys": [ "alt+right" ], "command": "white_table" , "args": {"dir": "right"} },
-	
+
+	{ "keys": ["alt+m"], "command": "maximize_window"},
+
 
 	{ "keys": ["ctrl+e"], "command": "duplicate_line" },
 	{ "keys": ["ctrl+\\"], "command": "toggle_side_bar" },
 	{ "keys": ["ctrl+t"], "command": "new_file" },
 	{ "keys": ["alt+w"], "command": "toggle_setting", "args": { "setting": "word_wrap"}}
-         
-]   
+
+
+
+
+]

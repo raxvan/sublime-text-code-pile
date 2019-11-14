@@ -17,6 +17,7 @@ import webbrowser
 import zlib
 import subprocess
 
+
 from io import StringIO
 
 try:
@@ -61,9 +62,13 @@ def _create_cpp_doc_url(search_symbol):
 
 	return urlparse.urlunparse(url_parts)
 
-def _create_google_lucky_query(query_string):
-	url = 'http://www.google.com/search?ie=UTF-8&oe=UTF-8&sourceid=navclient&gfns=1&q=X'
-	params = {'sourceid': 'navclient', 'q': query_string, 'oe': 'UTF-8', 'ie': 'UTF-8', 'gfns': '1'}
+def _create_search_query(query_string):
+	#google
+	#url = 'http://www.google.com/search?ie=UTF-8&oe=UTF-8&sourceid=navclient&gfns=1&q=X'
+	#params = {'sourceid': 'navclient', 'q': query_string, 'oe': 'UTF-8', 'ie': 'UTF-8', 'gfns': '1'}
+	#duckduckgo
+	url = "https://duckduckgo.com/?q=X&ia=web"
+	params = {'ia': 'web', 'q': query_string}
 
 	url_parts = list(urlparse.urlparse(url))
 	query = dict(urlparse.parse_qsl(url_parts[4]))
@@ -104,11 +109,11 @@ class PrimitiveFunctions(object):
 		return ""
 
 	def g(value): #google lucky query
-		_open_browser_with_url(_create_google_lucky_query(value))
+		_open_browser_with_url(_create_search_query(value))
 		return ""
 
 	def env(env_var = None): #print enviroment variables
-		
+
 		if(env_var == None):
 			return json.dumps(dict(os.environ), sort_keys=True, indent=4)
 		else:
@@ -230,7 +235,7 @@ class ViewdocumentationCommand(sublime_plugin.TextCommand):
 
 ##################################################################################################################################
 
-class SelectionGotoCommand(sublime_plugin.TextCommand):
+class SmarterGotoCommand(sublime_plugin.TextCommand):
 	def __init__(self, *args, **kwargs):
 		sublime_plugin.TextCommand.__init__(self, *args, **kwargs)
 
@@ -272,12 +277,17 @@ class SelectionGotoCommand(sublime_plugin.TextCommand):
 			_open_browser_with_url(value)
 
 		else:
-			_open_browser_with_url(_create_google_lucky_query(value))
+			#google lucky query
+			_open_browser_with_url(_create_search_query(value))
 
 		pass
 
 	def run_one_selection(self, edit, region):
-		if not region.empty():
+		current_file = self.view.file_name()
+
+		if current_file != None and current_file.lower().endswith(".md"):
+			_open_browser_with_url(current_file)
+		elif not region.empty():
 			value = self.view.substr(region)
 			self._find_and_goto(value)
 		else:
@@ -309,7 +319,7 @@ class TogglePathFormatCommand(sublime_plugin.TextCommand):
 		twinstr = value.count("\\\\")
 		if twinstr != 0:
 			return value.replace("\\\\","\\")
-		
+
 		t0 = value.count("\\")
 		t1 = value.count("/")
 
@@ -322,7 +332,7 @@ class TogglePathFormatCommand(sublime_plugin.TextCommand):
 			return value.replace("\\","/")
 		else:
 			return value.replace("/","\\\\")
-		return value			
+		return value
 
 	def run_one_selection(self, edit, region):
 		if not region.empty():
@@ -356,12 +366,12 @@ class ToggleNewlineSplitCommand(sublime_plugin.TextCommand):
 		separators = value.count(";")
 		if separators != 0:
 			return value.replace(";","\n")
-		
+
 		newlines = value.count("\n")
 		if newlines != 0:
 			return value.replace("\n",";")
 
-		return value			
+		return value
 
 	def run_one_selection(self, edit, region):
 		if not region.empty():
@@ -386,15 +396,15 @@ class WhiteTableCommand(sublime_plugin.TextCommand):
 
 		for region in backup_selections:
 			new_selections.append(self.run_one_selection(edit, region,direction))
-			
+
 		self.view.sel().clear()
 		self.view.sel().add_all(new_selections)
 
 	def run_one_selection(self,edit, cselection, direction):
-		
+
 		row, col = self.view.rowcol(cselection.begin())
 		if(col == 0 or row == 0):
-			
+
 			return cselection
 
 		up_pos = self.view.text_point(row - 1, col)
@@ -429,7 +439,7 @@ class WhiteTableCommand(sublime_plugin.TextCommand):
 			#print("[" + mid_text + "]")
 			self.view.replace(edit, mid_range, mid_text)
 			return sublime.Region(cselection.begin() + 1,cselection.end() + 1)
-			
+
 		elif direction == "left":
 
 			if mid_text[1] == "|":
@@ -446,28 +456,28 @@ class WhiteTableCommand(sublime_plugin.TextCommand):
 			#print("[" + mid_text + "]")
 			self.view.replace(edit, mid_range, mid_text)
 			return sublime.Region(cselection.begin() - 1,cselection.end() - 1)
-			
+
 		elif direction == "up":
-			
+
 			mid_changed = False
 
 			if mid_text[0] == "-" or mid_text[1] == "-":
 				mid_text = "+" + mid_text[1]
 				mid_changed = True
-			
+
 
 			if up_text[0] == "-" or up_text[1] == "-":
 				up_text = "+" + up_text[1]
 			else:
 				up_text = "|" + up_text[1]
-			
+
 			self.view.replace(edit, up_range, up_text)
 			if mid_changed:
 				self.view.replace(edit, mid_range, mid_text)
 			return sublime.Region(up_pos,up_pos)
-			
+
 		elif direction == "down":
-			
+
 			mid_changed = False
 
 			if mid_text[0] == "-" or mid_text[1] == "-":
@@ -478,17 +488,22 @@ class WhiteTableCommand(sublime_plugin.TextCommand):
 				down_text = "+" + down_text[1]
 			else:
 				down_text = "|" + down_text[1]
-			
+
 			self.view.replace(edit, down_range, down_text)
 			if mid_changed:
 				self.view.replace(edit, mid_range, mid_text)
 			return sublime.Region(down_pos,down_pos)
 
+##################################################################################################################################
 
+class MaximizeWindowCommand(sublime_plugin.TextCommand):
+	def __init__(self, *args, **kwargs):
+		sublime_plugin.TextCommand.__init__(self, *args, **kwargs)
 
-
-
-
+	def run(self, edit, **kwargs):
+		# https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindowasync
+		hwndSublime = ctypes.windll.user32.FindWindowA(b'PX_WINDOW_CLASS', None)
+		ctypes.windll.user32.ShowWindowAsync(hwndSublime, 3)
 
 ##################################################################################################################################
 ##################################################################################################################################
