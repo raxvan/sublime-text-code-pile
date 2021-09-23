@@ -29,6 +29,7 @@ except: # For Python 3
 
 
 def _run_system_command(call_cmd):
+	print(call_cmd)
 	p = subprocess.Popen(call_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	stdout, stderr = p.communicate()
 	if stderr:
@@ -119,7 +120,7 @@ class PrimitiveFunctions(object):
 		else:
 			return os.environ[env_var]
 
-	def ls(abs_path): #list items at path
+	def glob(abs_path): #list items at path
 		result = []
 		for r, d, f in os.walk(abs_path):
 			for folder in d:
@@ -128,6 +129,22 @@ class PrimitiveFunctions(object):
 				result.append(os.path.join(r,file))
 		return ";".join(result)
 
+	def ls(abs_path): #list items at path
+		result = []
+		for f in os.listdir(abs_path):
+			result.append(os.path.join(abs_path,f))
+		return ";".join(result)
+
+	def abs(search_path, filename):
+		result = []
+		for r, d, f in os.walk(search_path):
+			for file in f:
+				if file.lower() == filename.lower():
+					result.append(os.path.join(r,file))
+		if result:
+			return ";".join(result)
+		else:
+			return filename
 
 
 class CalculateScope(object):
@@ -247,6 +264,14 @@ class SmarterGotoCommand(sublime_plugin.TextCommand):
 			r'(?::\d+)?' # optional port
 			r'(?:/?|[/?]\S+)$', re.IGNORECASE)
 
+		self.urlregex2 = re.compile(
+			r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|' #domain...
+			r'localhost|' #localhost...
+			r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})' # ...or ip
+			r'(?::\d+)?' # optional port
+			r'(?:/?|[/?]\S+)$', re.IGNORECASE)
+
+
 	def run(self, edit, **kwargs):
 		errors = []
 		for region in self.view.sel():
@@ -262,34 +287,60 @@ class SmarterGotoCommand(sublime_plugin.TextCommand):
 			sublime.status_message(";".join(errors))
 
 	def _find_and_goto(self,value):
-		if os.path.isfile(value):
-			#file
-			sublime.active_window().open_file(value)
-		elif os.path.isdir(value):
-			#directory
-			if sys.platform == "win32":
-				_run_system_command(["explorer", value])
-			if sys.platform == "darwin":
-				_run_system_command(["open", value])
+		clean_value = value.replace("\n","")
 
-		elif re.match(self.urlregex, value) is not None:
+		current_file = self.view.file_name()
+		if current_file != None:
+			current_file_dir,_ = os.path.split(current_file)
+			test_dir = os.path.join(current_file_dir,clean_value)
+			if os.path.exists(test_dir):
+				sublime.active_window().open_file(test_dir)
+				return True
+
+		if re.match(self.urlregex, value) is not None:
 			#url
 			_open_browser_with_url(value)
+			return True
 
-		else:
-			#google lucky query
-			_open_browser_with_url(_create_search_query(value))
+		elif re.match(self.urlregex2, value) is not None:
+			#url
+			_open_browser_with_url(value)
+			return True
 
-		pass
+		elif os.path.isfile(clean_value):
+			#file
+			sublime.active_window().open_file(clean_value)
+			return True
+
+		elif os.path.isdir(clean_value):
+			#directory
+			if sys.platform == "win32":
+				_run_system_command(["explorer", os.path.normpath(clean_value)])
+			if sys.platform == "darwin":
+				_run_system_command(["open", os.path.normpath(clean_value)])
+
+			return True
+
+		return False
 
 	def run_one_selection(self, edit, region):
 		current_file = self.view.file_name()
 
-		if current_file != None and current_file.lower().endswith(".md"):
-			_open_browser_with_url(current_file)
-		elif not region.empty():
+		is_markdown = current_file != None and current_file.lower().endswith(".md")
+		##google lucky query
+		#_open_browser_with_url(_create_search_query(value))
+
+		#do domething with current file if possible
+
+
+		if not region.empty():
 			value = self.view.substr(region)
-			self._find_and_goto(value)
+			#we have selection
+			if self._find_and_goto(value) == True:
+				return
+
+		if is_markdown:
+			_open_browser_with_url(current_file)
 		else:
 			self._find_and_goto(sublime.get_clipboard());
 			#sublime.active_window().open_file(sublime.get_clipboard())
@@ -380,119 +431,6 @@ class ToggleNewlineSplitCommand(sublime_plugin.TextCommand):
 			if new_value != value:
 				self.view.replace(edit, region, new_value)
 
-
-##################################################################################################################################
-
-class WhiteTableCommand(sublime_plugin.TextCommand):
-	def __init__(self, *args, **kwargs):
-		sublime_plugin.TextCommand.__init__(self, *args, **kwargs)
-
-	def run(self, edit, **kwargs):
-		errors = []
-		backup_selections = self.view.sel()
-		new_selections = []
-		direction = kwargs['dir']
-		#print(direction)
-
-		for region in backup_selections:
-			new_selections.append(self.run_one_selection(edit, region,direction))
-
-		self.view.sel().clear()
-		self.view.sel().add_all(new_selections)
-
-	def run_one_selection(self,edit, cselection, direction):
-
-		row, col = self.view.rowcol(cselection.begin())
-		if(col == 0 or row == 0):
-
-			return cselection
-
-		up_pos = self.view.text_point(row - 1, col)
-		down_pos = self.view.text_point(row + 1, col)
-
-		#make region with line start and current cursor position
-		up_range = sublime.Region(up_pos - 1,up_pos + 1)
-		mid_range = sublime.Region(cselection.begin() - 1,cselection.end() + 1)
-		down_range = sublime.Region(down_pos - 1,down_pos + 1)
-
-		up_text = self.view.substr(up_range)
-		mid_text = self.view.substr(mid_range)
-		down_text = self.view.substr(down_range)
-
-		#print(">"+up_text+"<")
-		#print(">"+mid_text+"<")
-		#print(">"+down_text+"<")
-
-		if direction == "right":
-
-			if mid_text[0] == "|":
-				mid_text = "+"
-			elif up_text[0] == "|" or down_text[0] == "|":
-				mid_text = "+"
-			else:
-				mid_text = "" + mid_text[0]
-
-			if up_text[1] == "|" or down_text[1] == "|":
-				mid_text = mid_text + "+"
-			else:
-				mid_text = mid_text + "-"
-			#print("[" + mid_text + "]")
-			self.view.replace(edit, mid_range, mid_text)
-			return sublime.Region(cselection.begin() + 1,cselection.end() + 1)
-
-		elif direction == "left":
-
-			if mid_text[1] == "|":
-				mid_text = "+"
-			elif up_text[1] == "|" or down_text[1] == "|":
-				mid_text = "+"
-			else:
-				mid_text = "" + mid_text[1]
-
-			if up_text[0] == "|" or down_text[0] == "|":
-				mid_text = "+" + mid_text
-			else:
-				mid_text = "-" + mid_text
-			#print("[" + mid_text + "]")
-			self.view.replace(edit, mid_range, mid_text)
-			return sublime.Region(cselection.begin() - 1,cselection.end() - 1)
-
-		elif direction == "up":
-
-			mid_changed = False
-
-			if mid_text[0] == "-" or mid_text[1] == "-":
-				mid_text = "+" + mid_text[1]
-				mid_changed = True
-
-
-			if up_text[0] == "-" or up_text[1] == "-":
-				up_text = "+" + up_text[1]
-			else:
-				up_text = "|" + up_text[1]
-
-			self.view.replace(edit, up_range, up_text)
-			if mid_changed:
-				self.view.replace(edit, mid_range, mid_text)
-			return sublime.Region(up_pos,up_pos)
-
-		elif direction == "down":
-
-			mid_changed = False
-
-			if mid_text[0] == "-" or mid_text[1] == "-":
-				mid_text = "+" + mid_text[1]
-				mid_changed = True
-
-			if down_text[0] == "-" or down_text[1] == "-":
-				down_text = "+" + down_text[1]
-			else:
-				down_text = "|" + down_text[1]
-
-			self.view.replace(edit, down_range, down_text)
-			if mid_changed:
-				self.view.replace(edit, mid_range, mid_text)
-			return sublime.Region(down_pos,down_pos)
 
 ##################################################################################################################################
 
