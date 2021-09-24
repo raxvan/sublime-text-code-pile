@@ -29,7 +29,6 @@ except: # For Python 3
 
 
 def _run_system_command(call_cmd):
-	print(call_cmd)
 	p = subprocess.Popen(call_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	stdout, stderr = p.communicate()
 	if stderr:
@@ -105,16 +104,7 @@ class PrimitiveFunctions(object):
 			h.value = h.value * ctypes.c_uint(16777619).value
 		return str(h.value)
 
-	def dc(value): #open documentation browser
-		_open_browser_with_url(_create_cpp_doc_url(value))
-		return ""
-
-	def g(value): #google lucky query
-		_open_browser_with_url(_create_search_query(value))
-		return ""
-
 	def env(env_var = None): #print enviroment variables
-
 		if(env_var == None):
 			return json.dumps(dict(os.environ), sort_keys=True, indent=4)
 		else:
@@ -135,11 +125,12 @@ class PrimitiveFunctions(object):
 			result.append(os.path.join(abs_path,f))
 		return ";".join(result)
 
-	def abs(search_path, filename):
+	def find(search_path, filename):
 		result = []
+		fl = filename.lower()
 		for r, d, f in os.walk(search_path):
 			for file in f:
-				if file.lower() == filename.lower():
+				if fl in file.lower():
 					result.append(os.path.join(r,file))
 		if result:
 			return ";".join(result)
@@ -289,13 +280,14 @@ class SmarterGotoCommand(sublime_plugin.TextCommand):
 	def _find_and_goto(self,value):
 		clean_value = value.replace("\n","")
 
-		current_file = self.view.file_name()
-		if current_file != None:
-			current_file_dir,_ = os.path.split(current_file)
-			test_dir = os.path.join(current_file_dir,clean_value)
-			if os.path.exists(test_dir):
-				sublime.active_window().open_file(test_dir)
-				return True
+		#current_file = self.view.file_name()
+		#if current_file != None:
+		#	current_file_dir,_ = os.path.split(current_file)
+		#	test_dir = os.path.join(current_file_dir,clean_value)
+		#	print(test_dir)
+		#	if os.path.exists(test_dir):
+		#		sublime.active_window().open_file(test_dir)
+		#		return True
 
 		if re.match(self.urlregex, value) is not None:
 			#url
