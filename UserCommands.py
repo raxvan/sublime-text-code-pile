@@ -17,7 +17,6 @@ import webbrowser
 import zlib
 import subprocess
 
-
 from io import StringIO
 
 try:
@@ -27,6 +26,31 @@ except: # For Python 3
 	import urllib.parse as urlparse
 	from urllib.parse import urlencode
 
+
+g_paths = None
+g_paths_db = os.path.join(os.path.split(__file__)[0],"toolpaths")
+try:
+	g_paths = open(g_paths_db,"r")
+except:
+	g_paths = None
+	pass
+
+if(g_paths != None):
+	f = g_paths
+	g_paths = json.load(f)
+	f.close()
+else:
+	g_paths = {
+		"SFT" : ""
+	}
+
+print(g_paths)
+
+def save_paths():
+	global g_paths
+	global g_paths_db
+	with open(g_paths_db, 'w') as outfile:
+		json.dump(g_paths, outfile)
 
 def _run_system_command(call_cmd):
 	p = subprocess.Popen(call_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -49,6 +73,13 @@ def _open_browser_with_url(url):
 
 	if browser_executable != None:
 		webbrowser.get(browser_executable).open(url)
+
+def _open_local_sft(abs_path_to_file):
+	global g_paths
+	DETACHED_PROCESS = 0x00000008
+	pid = subprocess.Popen([g_paths["SFT"], "-i", abs_path_to_file], creationflags=DETACHED_PROCESS).pid
+	print("created process with pid: " + str(pid))
+
 
 def _create_cpp_doc_url(search_symbol):
 	url = "https://en.cppreference.com/mwiki/index.php?"
@@ -96,6 +127,22 @@ class PrimitiveFunctions(object):
 		return sys.platform
 	def version():
 		return sys.version
+	def edit():
+		sublime.active_window().open_file(__file__)
+		return ""
+
+	def path():
+		global g_paths
+		return str(g_paths)
+
+	def set(K,V):
+		global g_paths
+		if K in g_paths:
+			g_paths[K] = V
+			save_paths()
+			return str(g_paths)
+
+		return None
 
 	def hash32(strvalue):
 		h = ctypes.c_uint(2166136261)
@@ -280,15 +327,6 @@ class SmarterGotoCommand(sublime_plugin.TextCommand):
 	def _find_and_goto(self,value):
 		clean_value = value.replace("\n","")
 
-		#current_file = self.view.file_name()
-		#if current_file != None:
-		#	current_file_dir,_ = os.path.split(current_file)
-		#	test_dir = os.path.join(current_file_dir,clean_value)
-		#	print(test_dir)
-		#	if os.path.exists(test_dir):
-		#		sublime.active_window().open_file(test_dir)
-		#		return True
-
 		if re.match(self.urlregex, value) is not None:
 			#url
 			_open_browser_with_url(value)
@@ -318,7 +356,9 @@ class SmarterGotoCommand(sublime_plugin.TextCommand):
 	def run_one_selection(self, edit, region):
 		current_file = self.view.file_name()
 
-		is_markdown = current_file != None and current_file.lower().endswith(".md")
+		file_md = current_file != None and current_file.lower().endswith(".md")
+		file_sft = current_file != None and current_file.lower().endswith(".sft") 
+
 		##google lucky query
 		#_open_browser_with_url(_create_search_query(value))
 
@@ -326,16 +366,21 @@ class SmarterGotoCommand(sublime_plugin.TextCommand):
 
 
 		if not region.empty():
-			value = self.view.substr(region)
 			#we have selection
+
+			value = self.view.substr(region)
 			if self._find_and_goto(value) == True:
 				return
 
-		if is_markdown:
+		if file_md:
 			_open_browser_with_url(current_file)
+			return
+		elif file_sft:
+			_open_local_sft(current_file)
+			return
 		else:
 			self._find_and_goto(sublime.get_clipboard());
-			#sublime.active_window().open_file(sublime.get_clipboard())
+			return
 
 ##################################################################################################################################
 
