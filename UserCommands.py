@@ -27,8 +27,10 @@ except: # For Python 3
 	from urllib.parse import urlencode
 
 
+##############################################################################################
+
 g_paths = None
-g_paths_db = os.path.join(os.path.split(__file__)[0],"toolpaths")
+g_paths_db = os.path.join(os.path.split(__file__)[0],"plugpaths")
 try:
 	g_paths = open(g_paths_db,"r")
 except:
@@ -46,11 +48,7 @@ else:
 
 print(g_paths)
 
-def save_paths():
-	global g_paths
-	global g_paths_db
-	with open(g_paths_db, 'w') as outfile:
-		json.dump(g_paths, outfile)
+##############################################################################################
 
 def _run_system_command(call_cmd):
 	p = subprocess.Popen(call_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -130,19 +128,6 @@ class PrimitiveFunctions(object):
 	def edit():
 		sublime.active_window().open_file(__file__)
 		return ""
-
-	def path():
-		global g_paths
-		return str(g_paths)
-
-	def set(K,V):
-		global g_paths
-		if K in g_paths:
-			g_paths[K] = V
-			save_paths()
-			return str(g_paths)
-
-		return None
 
 	def hash32(strvalue):
 		h = ctypes.c_uint(2166136261)
