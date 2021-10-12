@@ -42,9 +42,7 @@ if(g_paths != None):
 	g_paths = json.load(f)
 	f.close()
 else:
-	g_paths = {
-		"SFT" : ""
-	}
+	g_paths = {}
 
 print(g_paths)
 
@@ -60,7 +58,6 @@ def _open_browser_with_url(url):
 	browser_executable = None
 
 	if sys.platform == "win32":
-		#browser_executable = 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe %s'
 		browser_executable = 'C:/Program Files/Mozilla Firefox/firefox.exe %s'
 	if sys.platform == "darwin":
 		# MacOS
@@ -72,12 +69,29 @@ def _open_browser_with_url(url):
 	if browser_executable != None:
 		webbrowser.get(browser_executable).open(url)
 
-def _open_local_sft(abs_path_to_file):
-	global g_paths
-	DETACHED_PROCESS = 0x00000008
-	pid = subprocess.Popen([g_paths["SFT"], "-i", abs_path_to_file], creationflags=DETACHED_PROCESS).pid
-	print("created process with pid: " + str(pid))
 
+def _build_token(tok, abs_path_to_file):
+	if tok == "#file":
+		return abs_path_to_file
+	return tok
+
+def _try_open_with_tool(search_str, abs_path_to_file):
+	global g_paths
+
+	for k,v in g_paths.items():
+		if search_str.endswith(k):
+			tool_type = v['type']
+	
+			if tool_type == "browser":
+				_open_browser_with_url(abs_path_to_file)
+			elif tool_type == "exe":
+				cmd = [_build_token(t,abs_path_to_file) for t in v['cmd']]
+				DETACHED_PROCESS = 0x00000008
+				subprocess.Popen(cmd, creationflags=DETACHED_PROCESS)
+	
+			return True
+
+	return False
 
 def _create_cpp_doc_url(search_symbol):
 	url = "https://en.cppreference.com/mwiki/index.php?"
@@ -91,19 +105,19 @@ def _create_cpp_doc_url(search_symbol):
 
 	return urlparse.urlunparse(url_parts)
 
-def _create_search_query(query_string):
-	#google
-	#url = 'http://www.google.com/search?ie=UTF-8&oe=UTF-8&sourceid=navclient&gfns=1&q=X'
-	#params = {'sourceid': 'navclient', 'q': query_string, 'oe': 'UTF-8', 'ie': 'UTF-8', 'gfns': '1'}
-	#duckduckgo
-	url = "https://duckduckgo.com/?q=X&ia=web"
-	params = {'ia': 'web', 'q': query_string}
-
-	url_parts = list(urlparse.urlparse(url))
-	query = dict(urlparse.parse_qsl(url_parts[4]))
-	query.update(params)
-	url_parts[4] = urlencode(query)
-	return urlparse.urlunparse(url_parts)
+#def _create_search_query(query_string):
+#	#google
+#	#url = 'http://www.google.com/search?ie=UTF-8&oe=UTF-8&sourceid=navclient&gfns=1&q=X'
+#	#params = {'sourceid': 'navclient', 'q': query_string, 'oe': 'UTF-8', 'ie': 'UTF-8', 'gfns': '1'}
+#	#duckduckgo
+#	url = "https://duckduckgo.com/?q=X&ia=web"
+#	params = {'ia': 'web', 'q': query_string}
+#
+#	url_parts = list(urlparse.urlparse(url))
+#	query = dict(urlparse.parse_qsl(url_parts[4]))
+#	query.update(params)
+#	url_parts[4] = urlencode(query)
+#	return urlparse.urlunparse(url_parts)
 
 ##################################################################################################################################
 ##################################################################################################################################
@@ -341,15 +355,6 @@ class SmarterGotoCommand(sublime_plugin.TextCommand):
 	def run_one_selection(self, edit, region):
 		current_file = self.view.file_name()
 
-		file_md = current_file != None and current_file.lower().endswith(".md")
-		file_sft = current_file != None and current_file.lower().endswith(".sft") 
-
-		##google lucky query
-		#_open_browser_with_url(_create_search_query(value))
-
-		#do domething with current file if possible
-
-
 		if not region.empty():
 			#we have selection
 
@@ -357,15 +362,13 @@ class SmarterGotoCommand(sublime_plugin.TextCommand):
 			if self._find_and_goto(value) == True:
 				return
 
-		if file_md:
-			_open_browser_with_url(current_file)
-			return
-		elif file_sft:
-			_open_local_sft(current_file)
-			return
-		else:
-			self._find_and_goto(sublime.get_clipboard());
-			return
+		if current_file != None:
+			search_str = current_file.lower()
+			if _try_open_with_tool(search_str, current_file):
+				return;
+
+		self._find_and_goto(sublime.get_clipboard());
+		
 
 ##################################################################################################################################
 
