@@ -309,6 +309,9 @@ class SmarterGotoCommand(sublime_plugin.TextCommand):
 			r'(?:/?|[/?]\S+)$', re.IGNORECASE)
 
 
+		self.evaluated_goto_ctx = None
+
+
 	def run(self, edit, **kwargs):
 		errors = []
 		for region in self.view.sel():
@@ -323,8 +326,67 @@ class SmarterGotoCommand(sublime_plugin.TextCommand):
 		if(len(errors) > 0):
 			sublime.status_message(";".join(errors))
 
-	def _find_and_goto(self,value):
+	def _goto_get_cwd(self):
+		current_file = self.view.file_name()
+		if (current_file != None):
+			return os.path.dirname(current_file)
+		else:
+			raise Exception("nothing to do ...")
+
+	def _goto_get_filename(self):
+		current_file = self.view.file_name()
+		if (current_file != None):
+			return os.path.basename(current_file)
+		else:
+			raise Exception("nothing to do ...")
+	
+
+	def _goto_path_join(self, args):
+
+		result = args[0]
+		for i in args[1:]:
+			result = os.path.join(result,i)
+		return result
+
+	def _goto_run(self, args):
+		print(args)
+		for a in args:
+
+			if self._run_goto_command(a) == True:
+				return True
+
+		return False
+
+	def evaluated_goto(self, command):
+		
+		if self.evaluated_goto_ctx == None:
+
+			self.evaluated_goto_ctx = {
+				"goto" : lambda *v : self._goto_run(v),
+				"cwd" : lambda : self._goto_get_cwd(),
+				"file" : lambda : self._goto_get_filename(),
+				"join" : lambda *v : self._goto_path_join(v),
+			}
+		
+		try:
+
+			result = eval(command, self.evaluated_goto_ctx)
+			if isinstance(result, bool):
+				return result
+
+		except Exception as exception:
+			print(str(exception))
+
+			return True
+
+		return False
+
+	def _run_goto_command(self,value):
 		clean_value = value.replace("\n","")
+
+		if clean_value.startswith("goto"):
+			if self.evaluated_goto(clean_value):
+				return True
 
 		if re.match(self.urlregex, value) is not None:
 			#url
@@ -359,7 +421,7 @@ class SmarterGotoCommand(sublime_plugin.TextCommand):
 			#we have selection
 
 			value = self.view.substr(region)
-			if self._find_and_goto(value) == True:
+			if self._run_goto_command(value) == True:
 				return
 
 		if current_file != None:
@@ -367,8 +429,8 @@ class SmarterGotoCommand(sublime_plugin.TextCommand):
 			if _try_open_with_tool(search_str, current_file):
 				return;
 
-		self._find_and_goto(sublime.get_clipboard());
-		
+		self._run_goto_command(sublime.get_clipboard());
+	
 
 ##################################################################################################################################
 
