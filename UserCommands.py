@@ -224,7 +224,16 @@ class CalculateScope(object):
 	def next(self):
 		self.dict['i'] = self.dict['i'] + 1
 
+	def evaluate_color(self, mvalue):
+		l = len(mvalue)
+		v = mvalue.ljust(8,"0")
+		return str(tuple(int(v[i:i + 2], 16) / 255.0 for i in (1, 3, 5, 7))) # skip '#'
+
 	def evaluate_str(self, expr):
+
+		if expr.startswith("#"):
+			return self.evaluate_color(expr)
+
 		result = eval(expr, self.dict)
 		if not isinstance(result, str):
 			result = str(result)
@@ -380,6 +389,21 @@ class SmarterGotoCommand(sublime_plugin.TextCommand):
 			return True
 
 		return False
+	def _try_open_file_or_dir(self, abs_path):
+		if os.path.isfile(abs_path):
+			#file
+			sublime.active_window().open_file(abs_path)
+			return True
+
+		elif os.path.isdir(abs_path):
+			#directory
+			if sys.platform == "win32":
+				_run_system_command(["explorer", os.path.normpath(abs_path)])
+			if sys.platform == "darwin":
+				_run_system_command(["open", os.path.normpath(abs_path)])
+
+			return True
+		return False
 
 	def _run_goto_command(self,value):
 		clean_value = value.replace("\n","")
@@ -398,18 +422,17 @@ class SmarterGotoCommand(sublime_plugin.TextCommand):
 			_open_browser_with_url(value)
 			return True
 
-		elif os.path.isfile(clean_value):
-			#file
-			sublime.active_window().open_file(clean_value)
-			return True
+		elif clean_value.startswith("%~dp0"):
+			#windows bash path
+			current_file = self.view.file_name()
+			if (current_file != None):
+				current_dir,_ = os.path.split(current_file)
+				target_dir = os.path.join(current_dir,clean_value.replace("%~dp0",""))
+				print(target_dir)
+				if os.path.exists(target_dir):
+					return self._try_open_file_or_dir(target_dir)
 
-		elif os.path.isdir(clean_value):
-			#directory
-			if sys.platform == "win32":
-				_run_system_command(["explorer", os.path.normpath(clean_value)])
-			if sys.platform == "darwin":
-				_run_system_command(["open", os.path.normpath(clean_value)])
-
+		elif self._try_open_file_or_dir(clean_value):
 			return True
 
 		return False
