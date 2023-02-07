@@ -4,6 +4,7 @@
 
 	{ "keys": ["ctrl+shift+d"], "command": "viewdocumentation"},
 	{ "keys": ["alt+g"], "command": "smarter_goto"},
+	{ "keys": ["alt+o"], "command": "switch_files"},
 
 	{ "keys": ["alt+\\"], "command": "toggle_path_format"},
 	{ "keys": ["alt+l"], "command": "toggle_newline_split"},

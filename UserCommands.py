@@ -296,6 +296,27 @@ class ViewdocumentationCommand(sublime_plugin.TextCommand):
 			value = self.view.substr(region)
 			_open_browser_with_url(_create_cpp_doc_url(value))
 
+
+##################################################################################################################################
+
+class SwitchFilesCommand(sublime_plugin.TextCommand):
+	def __init__(self, *args, **kwargs):
+		sublime_plugin.TextCommand.__init__(self, *args, **kwargs)
+
+	def run(self, edit, **kwargs):
+		view = sublime.active_window().active_view()
+		current_file = os.path.basename(view.file_name())
+		basename, ext = os.path.splitext(current_file)
+		text = basename + " "
+		if ext == ".h":
+			text = text + "cpp"
+		elif ext == ".cpp":
+			text = text + "h"
+		else:
+			return
+		sublime.active_window().run_command("show_overlay", {"overlay": "goto", "text": text})
+		return;
+
 ##################################################################################################################################
 
 class SmarterGotoCommand(sublime_plugin.TextCommand):
