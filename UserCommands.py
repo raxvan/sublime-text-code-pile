@@ -307,11 +307,11 @@ class SwitchFilesCommand(sublime_plugin.TextCommand):
 		view = sublime.active_window().active_view()
 		current_file = os.path.basename(view.file_name())
 		basename, ext = os.path.splitext(current_file)
-		text = basename + " "
+		text = basename
 		if ext == ".h":
-			text = text + "cpp"
+			text = text + ".cpp"
 		elif ext == ".cpp":
-			text = text + "h"
+			text = text + ".h"
 		else:
 			return
 		sublime.active_window().run_command("show_overlay", {"overlay": "goto", "text": text})
