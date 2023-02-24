@@ -322,8 +322,8 @@ class OpenNextFileCommand(sublime_plugin.TextCommand):
 		sublime_plugin.TextCommand.__init__(self, *args, **kwargs)
 
 	def run(self, edit, **kwargs):
-		current_path = sublime.active_window().active_view().window().folders()[0]
-		current_filename = os.path.basename(sublime.active_window().active_view().file_name())
+		current_file_path = sublime.active_window().active_view().file_name()
+		current_path, current_filename = os.path.split(current_file_path)
 
 		current_file_found = False
 
@@ -331,17 +331,23 @@ class OpenNextFileCommand(sublime_plugin.TextCommand):
 		if kwargs.get("reversed", False) == True:
 			files_in_order = reversed(files_in_order)
 
+
+		r = ""
 		for p in files_in_order:
+
 			abspath = os.path.join(current_path, p)
 			if os.path.isfile(abspath) == False:
 				continue
 
 			if current_file_found == True:
-				self.view.window().open_file(abspath)
+				sublime.active_window().active_view().window().open_file(abspath)
 				break;
 
 			if p == current_filename:
 				current_file_found = True
+
+		#sublime.active_window().run_command("show_overlay", {"overlay": "goto", "text": r})
+		#return
 
 ##################################################################################################################################
 

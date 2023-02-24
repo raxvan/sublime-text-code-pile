@@ -16,7 +16,7 @@
 	{ "keys": [ "ctrl+shift+down" ], "command": "punch_cursor" , "args": {"down": true} },
 
 
-	{ "keys": ["ctrl+up"], "command": "move", "args": {"by": "brackets", "forward": false} },
+	//{ "keys": ["ctrl+up"], "command": "move", "args": {"by": "brackets", "forward": false} },
 
 	//hack
 	{ "keys": ["alt+m"], "command": "maximize_window"},
