@@ -317,6 +317,32 @@ class SwitchFilesCommand(sublime_plugin.TextCommand):
 		sublime.active_window().run_command("show_overlay", {"overlay": "goto", "text": text})
 		return;
 
+class OpenNextFileCommand(sublime_plugin.TextCommand):
+	def __init__(self, *args, **kwargs):
+		sublime_plugin.TextCommand.__init__(self, *args, **kwargs)
+
+	def run(self, edit, **kwargs):
+		current_path = sublime.active_window().active_view().window().folders()[0]
+		current_filename = os.path.basename(sublime.active_window().active_view().file_name())
+
+		current_file_found = False
+
+		files_in_order = sorted(os.listdir(current_path))
+		if kwargs.get("reversed", False) == True:
+			files_in_order = reversed(files_in_order)
+
+		for p in files_in_order:
+			abspath = os.path.join(current_path, p)
+			if os.path.isfile(abspath) == False:
+				continue
+
+			if current_file_found == True:
+				self.view.window().open_file(abspath)
+				break;
+
+			if p == current_filename:
+				current_file_found = True
+
 ##################################################################################################################################
 
 class SmarterGotoCommand(sublime_plugin.TextCommand):
@@ -356,60 +382,6 @@ class SmarterGotoCommand(sublime_plugin.TextCommand):
 		if(len(errors) > 0):
 			sublime.status_message(";".join(errors))
 
-	def _goto_get_cwd(self):
-		current_file = self.view.file_name()
-		if (current_file != None):
-			return os.path.dirname(current_file)
-		else:
-			raise Exception("nothing to do ...")
-
-	def _goto_get_filename(self):
-		current_file = self.view.file_name()
-		if (current_file != None):
-			return os.path.basename(current_file)
-		else:
-			raise Exception("nothing to do ...")
-	
-
-	def _goto_path_join(self, args):
-
-		result = args[0]
-		for i in args[1:]:
-			result = os.path.join(result,i)
-		return result
-
-	def _goto_run(self, args):
-		print(args)
-		for a in args:
-
-			if self._run_goto_command(a) == True:
-				return True
-
-		return False
-
-	def evaluated_goto(self, command):
-		
-		if self.evaluated_goto_ctx == None:
-
-			self.evaluated_goto_ctx = {
-				"goto" : lambda *v : self._goto_run(v),
-				"cwd" : lambda : self._goto_get_cwd(),
-				"file" : lambda : self._goto_get_filename(),
-				"join" : lambda *v : self._goto_path_join(v),
-			}
-		
-		try:
-
-			result = eval(command, self.evaluated_goto_ctx)
-			if isinstance(result, bool):
-				return result
-
-		except Exception as exception:
-			print(str(exception))
-
-			return True
-
-		return False
 	def _try_open_file_or_dir(self, abs_path):
 		if os.path.isfile(abs_path):
 			#file
@@ -428,10 +400,6 @@ class SmarterGotoCommand(sublime_plugin.TextCommand):
 
 	def _run_goto_command(self,value):
 		clean_value = value.replace("\n","")
-
-		if clean_value.startswith("goto"):
-			if self.evaluated_goto(clean_value):
-				return True
 
 		if re.match(self.urlregex, value) is not None:
 			#url
@@ -462,11 +430,15 @@ class SmarterGotoCommand(sublime_plugin.TextCommand):
 		current_file = self.view.file_name()
 
 		if not region.empty():
-			#we have selection
-
 			value = self.view.substr(region)
 			if self._run_goto_command(value) == True:
 				return
+
+			#we have selection
+			sublime.active_window().run_command("show_overlay", {"overlay": "goto", "text": value})
+			return "Nothing to do..."
+
+
 
 		if current_file != None:
 			search_str = current_file.lower()

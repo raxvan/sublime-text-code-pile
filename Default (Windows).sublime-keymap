@@ -1,5 +1,4 @@
 [
-	{ "keys": ["ctrl+shift+c"], "command": "calculate", "args": {"replace": true} },
 	{ "keys": ["alt+c"], "command": "calculate", "args": {"replace": true} },
 
 	{ "keys": ["ctrl+shift+d"], "command": "viewdocumentation"},
@@ -9,10 +8,15 @@
 	{ "keys": ["alt+\\"], "command": "toggle_path_format"},
 	{ "keys": ["alt+l"], "command": "toggle_newline_split"},
 
+	{ "keys": ["alt+up"], "command": "open_next_file", "args": {"reversed" : true}},
+	{ "keys": ["alt+down"], "command": "open_next_file"},
+
 
 	{ "keys": [ "ctrl+shift+up" ], "command": "punch_cursor" , "args": {"down": false} },
 	{ "keys": [ "ctrl+shift+down" ], "command": "punch_cursor" , "args": {"down": true} },
 
+
+	{ "keys": ["ctrl+up"], "command": "move", "args": {"by": "brackets", "forward": false} },
 
 	//hack
 	{ "keys": ["alt+m"], "command": "maximize_window"},
