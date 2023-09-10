@@ -78,6 +78,10 @@ def _build_token(tok, abs_path_to_file):
 def _try_open_with_tool(search_str, abs_path_to_file):
 	global g_paths
 
+	if search_str.endswith(".html"):
+		_open_browser_with_url(abs_path_to_file)
+		return;
+
 	for k,v in g_paths.items():
 		if search_str.endswith(k):
 			tool_type = v['type']
@@ -213,6 +217,15 @@ class CalculateScope(object):
 			self.dict[key] = tmp
 
 		self.dict['help'] = lambda: help_functions
+
+		self.dict['set'] = lambda s: self.set_function(s)
+		self.dict['get'] = lambda: self.get_function()
+
+	def set_function(self, value):
+		self.dict['v'] = value
+
+	def get_function(self):
+		return self.dict['v']
 
 	def load_shortcuts(self):
 		self.dict['pwd'] = self.dict['password']
