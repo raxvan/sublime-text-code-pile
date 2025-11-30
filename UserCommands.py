@@ -9,6 +9,7 @@ import pickle
 import sys
 import os
 import glob
+import time
 
 import sublime
 import sublime_plugin
@@ -132,6 +133,14 @@ class PrimitiveFunctions(object):
 	sep = "//--------------------------------------------------------------------------------------------------------------------------------"
 	sp  = "/*                                                                                                                              */"
 
+	def b64key(N: int) -> str:
+		random_bytes = os.urandom(N)
+		b64_string = base64.b64encode(random_bytes).decode('utf-8')
+		return b64_string
+
+	def decodeB64(b64_string: str) -> bytes:
+		return base64.b64decode(b64_string).decode("utf-8")
+
 	def password(length, charset = None):
 		if(charset != None):
 			return ''.join(random.choice(charset) for _ in range(length))
@@ -143,16 +152,21 @@ class PrimitiveFunctions(object):
 		return sys.platform
 	def version():
 		return sys.version
-	def edit():
-		sublime.active_window().open_file(__file__)
-		return ""
 
-	def hash32(strvalue):
-		h = ctypes.c_uint(2166136261)
-		for c in strvalue:
-			h.value = h.value ^ ctypes.c_uint(ord(c)).value
-			h.value = h.value * ctypes.c_uint(16777619).value
-		return str(h.value)
+	def edit(filename = None):
+		if filename != None:
+			filename = os.path.abspath(filename)
+			if os.path.exits(filename):
+				sublime.active_window().open_file(filename)
+				return
+		sublime.active_window().open_file(__file__)
+		return
+
+	def randomRange(low,high):
+		return random.randrange(low,high)
+
+	def unixtime():
+		return time.time()
 
 	def env(env_var = None): #print enviroment variables
 		if(env_var == None):
@@ -248,6 +262,8 @@ class CalculateScope(object):
 			return self.evaluate_color(expr)
 
 		result = eval(expr, self.dict)
+		if result == None:
+			return None
 		if not isinstance(result, str):
 			result = str(result)
 		return result
@@ -282,6 +298,8 @@ class CalculateCommand(sublime_plugin.TextCommand):
 		if not region.empty():
 			formula = self.view.substr(region)
 			value = self.calc_context.evaluate_str(formula)
+			if value == None:
+				return;
 			self.view.replace(edit, region, value)
 
 ##################################################################################################################################
